@@ -1,0 +1,111 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  password  String
+  role      String   @default("TENANT")
+  phone     String?
+  verified  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  properties      Property[]
+  enquiries       Enquiry[]
+  savedProperties SavedProperty[]
+  reviews         Review[]
+}
+
+model Property {
+  id                String   @id @default(cuid())
+  title             String
+  description       String
+  price             Int
+  priceUnit         String   @default("monthly")
+  type              String
+  area              String
+  address           String
+  latitude          Float?
+  longitude         Float?
+  googleMapUrl      String?
+  distanceFromSLIIT Float?
+  nearbyLandmarks   String   @default("[]")
+  amenities         String   @default("[]")
+  furnished         Boolean  @default(true)
+  gender            String   @default("ANY")
+  occupancy         String   @default("SINGLE")
+  bathrooms         Int      @default(1)
+  availableFrom     DateTime
+  contactName       String
+  contactPhone      String
+  contactWhatsApp   String?
+  verified          Boolean  @default(false)
+  featured          Boolean  @default(false)
+  approved          Boolean  @default(false)
+  views             Int      @default(0)
+  saves             Int      @default(0)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  landlordId String
+  landlord   User   @relation(fields: [landlordId], references: [id], onDelete: Cascade)
+
+  images    PropertyImage[]
+  enquiries Enquiry[]
+  savedBy   SavedProperty[]
+  reviews   Review[]
+}
+
+model PropertyImage {
+  id         String   @id @default(cuid())
+  url        String
+  publicId   String?
+  propertyId String
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+}
+
+model Enquiry {
+  id        String   @id @default(cuid())
+  message   String
+  status    String   @default("NEW")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  propertyId String
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  tenantId   String
+  tenant     User     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+model SavedProperty {
+  id         String   @id @default(cuid())
+  userId     String
+  propertyId String
+  createdAt  DateTime @default(now())
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, propertyId])
+}
+
+model Review {
+  id        String   @id @default(cuid())
+  rating    Int
+  comment   String?
+  createdAt DateTime @default(now())
+
+  propertyId String
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
