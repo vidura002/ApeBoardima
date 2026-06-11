@@ -5,7 +5,7 @@ const INCLUDE_FULL = {
   property: {
     include: { images: { take: 1, orderBy: { createdAt: 'asc' } } },
   },
-  tenant: { select: { id: true, name: true, email: true, phone: true } },
+  tenant: { select: { id: true, name: true, email: true, phone: true, role: true, verified: true, createdAt: true } },
 };
 
 export async function createEnquiry(req, res) {

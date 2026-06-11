@@ -4,6 +4,7 @@ import { MapPin, Heart, CheckCircle, Wifi, Eye, BedDouble } from 'lucide-react';
 import type { Listing } from '../../types';
 import { TypeBadge } from '../ui/Badge';
 import { useApp } from '../../context/AppContext';
+import AuthRequiredModal from '../auth/AuthRequiredModal';
 
 interface ListingCardProps {
   listing: Listing;
@@ -21,18 +22,41 @@ export default function ListingCard({ listing, compact = false }: ListingCardPro
   const { savedListings, toggleSave, isAuthenticated } = useApp();
   const isSaved = savedListings.includes(listing.id);
   const [imgError, setImgError] = useState(false);
+  const [authPromptOpen, setAuthPromptOpen] = useState(false);
+  const [authPromptCopy, setAuthPromptCopy] = useState({
+    title: 'Sign in to view listing details',
+    message: 'Create a free account or sign in to see full room details, photos, map location, and landlord contact options.',
+  });
+
+  const handleOpenListing = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    if (isAuthenticated) return;
+    e.preventDefault();
+    setAuthPromptCopy({
+      title: 'Sign in to view listing details',
+      message: 'Create a free account or sign in to see full room details, photos, map location, and landlord contact options.',
+    });
+    setAuthPromptOpen(true);
+  };
 
   const handleSave = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (!isAuthenticated) return;
+    if (!isAuthenticated) {
+      setAuthPromptCopy({
+        title: 'Sign in to save this room',
+        message: 'Create a free account or sign in to keep this listing in your saved rooms.',
+      });
+      setAuthPromptOpen(true);
+      return;
+    }
     toggleSave(listing.id);
   };
 
   const primaryImage = listing.images[0];
 
   return (
-    <Link to={`/listing/${listing.id}`} className="group block">
+    <>
+      <Link to={`/listing/${listing.id}`} onClick={handleOpenListing} className="group block">
       <div className="bg-white rounded-2xl border border-[#E5E7EB] overflow-hidden shadow-card hover:shadow-card-hover hover:-translate-y-0.5 transition-all duration-200">
         {/* Image */}
         <div className="relative overflow-hidden bg-[#F8FAFC]" style={{ paddingBottom: compact ? '62%' : '66%' }}>
@@ -124,6 +148,13 @@ export default function ListingCard({ listing, compact = false }: ListingCardPro
           </div>
         </div>
       </div>
-    </Link>
+      </Link>
+      <AuthRequiredModal
+        open={authPromptOpen}
+        onClose={() => setAuthPromptOpen(false)}
+        title={authPromptCopy.title}
+        message={authPromptCopy.message}
+      />
+    </>
   );
 }

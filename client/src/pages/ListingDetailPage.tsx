@@ -9,6 +9,7 @@ import {
 import { properties as propertiesApi, enquiries as enquiriesApi } from '../services/api';
 import { TypeBadge } from '../components/ui/Badge';
 import { useApp } from '../context/AppContext';
+import AuthRequiredModal from '../components/auth/AuthRequiredModal';
 import type { Listing } from '../types';
 
 const GENDER_LABEL: Record<string, string> = {
@@ -64,7 +65,7 @@ function mapUrls(latitude?: number, longitude?: number, googleMapUrl?: string) {
 export default function ListingDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { savedListings, toggleSave, isAuthenticated } = useApp();
+  const { currentUser, savedListings, toggleSave, isAuthenticated, authLoading } = useApp();
   const [listing, setListing] = useState<Listing | null>(null);
   const [related, setRelated] = useState<Listing[]>([]);
   const [loadingListing, setLoadingListing] = useState(true);
@@ -75,9 +76,10 @@ export default function ListingDetailPage() {
   const [inquiryMsg, setInquiryMsg] = useState('');
   const [inquirySent, setInquirySent] = useState(false);
   const [inquiryError, setInquiryError] = useState('');
+  const [authPromptOpen, setAuthPromptOpen] = useState(false);
 
   useEffect(() => {
-    if (!id) return;
+    if (!id || authLoading || !isAuthenticated) return;
     setLoadingListing(true);
     setNotFound(false);
     setActiveImg(0);
@@ -89,7 +91,28 @@ export default function ListingDetailPage() {
       .then(res => setRelated(res.data.filter(l => l.id !== id).slice(0, 3)))
       .catch(() => setNotFound(true))
       .finally(() => setLoadingListing(false));
-  }, [id]);
+  }, [id, authLoading, isAuthenticated]);
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#F8FAFC]">
+        <div className="w-8 h-8 border-2 border-[#0F172A] border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-[#F8FAFC]">
+        <AuthRequiredModal
+          open
+          onClose={() => navigate('/browse')}
+          title="Sign in to view listing details"
+          message="Create a free account or sign in to see full room details, photos, map location, and landlord contact options."
+        />
+      </div>
+    );
+  }
 
   if (loadingListing) {
     return (
@@ -116,13 +139,24 @@ export default function ListingDetailPage() {
   const locationMap = mapUrls(listing.latitude, listing.longitude, listing.googleMapUrl);
 
   const handleSave = () => {
-    if (!isAuthenticated) { navigate('/auth?mode=login'); return; }
+    if (!isAuthenticated) {
+      setAuthPromptOpen(true);
+      return;
+    }
     toggleSave(listing.id);
   };
 
   const handleInquiry = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isAuthenticated) { navigate('/auth?mode=login'); return; }
+    if (!isAuthenticated) {
+      setInquiryOpen(false);
+      setAuthPromptOpen(true);
+      return;
+    }
+    if (currentUser?.role !== 'tenant') {
+      setInquiryError('Only tenant accounts can send inquiries. Please sign in with a tenant account.');
+      return;
+    }
     setInquiryError('');
     try {
       await enquiriesApi.create({ propertyId: listing.id, message: inquiryMsg });
@@ -431,7 +465,16 @@ export default function ListingDetailPage() {
                   )}
 
                   <button
-                    onClick={() => setInquiryOpen(true)}
+                    onClick={() => {
+                      if (!isAuthenticated) {
+                        setAuthPromptOpen(true);
+                        return;
+                      }
+                      setInquiryError(currentUser?.role === 'tenant'
+                        ? ''
+                        : 'Only tenant accounts can send inquiries. Please sign in with a tenant account.');
+                      setInquiryOpen(true);
+                    }}
                     className="flex items-center justify-center gap-2.5 w-full border border-[#E5E7EB] text-[#475569] font-semibold text-sm py-3 px-4 rounded-xl hover:border-[#0F172A] hover:text-[#0F172A] transition-all"
                   >
                     Send inquiry
@@ -513,9 +556,9 @@ export default function ListingDetailPage() {
                     <button
                       type="submit"
                       className="flex-1 text-sm font-semibold bg-[#0F172A] text-white py-2.5 rounded-xl hover:bg-[#1e293b] transition-colors"
-                    >
-                      {isAuthenticated ? 'Send' : 'Sign in to send'}
-                    </button>
+	                    >
+	                      {!isAuthenticated ? 'Sign in to send' : currentUser?.role === 'tenant' ? 'Send' : 'Tenant account required'}
+	                    </button>
                   </div>
                 </form>
               </>
@@ -523,6 +566,12 @@ export default function ListingDetailPage() {
           </div>
         </div>
       )}
+      <AuthRequiredModal
+        open={authPromptOpen}
+        onClose={() => setAuthPromptOpen(false)}
+        title="Sign in to continue"
+        message="Create a free account or sign in to save rooms and send inquiries to landlords."
+      />
     </div>
   );
 }
