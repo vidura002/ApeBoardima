@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import {
-  getProperties, getPropertyById, createProperty,
+  getProperties, getAreaCounts, getPropertyById, createProperty,
   updateProperty, deleteProperty, getMyProperties,
   getAdminProperties, moderateProperty,
 } from '../controllers/propertyController.js';
@@ -10,6 +10,7 @@ const router = Router();
 
 router.get('/', getProperties);
 router.get('/mine', requireAuth, requireRole('LANDLORD', 'ADMIN'), getMyProperties);
+router.get('/stats/area-counts', getAreaCounts);
 router.get('/admin/all', requireAuth, requireRole('ADMIN'), getAdminProperties);
 router.patch('/admin/:id/moderation', requireAuth, requireRole('ADMIN'), moderateProperty);
 router.get('/:id', getPropertyById);

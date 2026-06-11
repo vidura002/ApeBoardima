@@ -1,5 +1,5 @@
-import { useState, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useRef, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, CheckCircle, Upload, X, Plus, MapPin, ExternalLink } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { Button } from '../components/ui/Button';
@@ -109,16 +109,54 @@ function googleMapsUrl(latitude: string, longitude: string) {
 export default function CreateListingPage() {
   const { currentUser, isAuthenticated } = useApp();
   const navigate = useNavigate();
+  const { id } = useParams<{ id: string }>();
+  const isEditMode = Boolean(id);
   const [step, setStep] = useState(0);
   const [form, setForm] = useState<FormData>(INITIAL);
   const [landmark, setLandmark] = useState('');
   const [submitted, setSubmitted] = useState(false);
   const [files, setFiles] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
+  const [existingImages, setExistingImages] = useState<string[]>([]);
+  const [loadingListing, setLoadingListing] = useState(isEditMode);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
   const [locationError, setLocationError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!id || !isAuthenticated) return;
+    setLoadingListing(true);
+    propertiesApi.get(id)
+      .then(listing => {
+        setForm({
+          title: listing.title,
+          type: listing.type,
+          area: listing.area,
+          address: listing.address,
+          latitude: listing.latitude !== undefined ? String(listing.latitude) : '',
+          longitude: listing.longitude !== undefined ? String(listing.longitude) : '',
+          googleMapUrl: listing.googleMapUrl || '',
+          price: String(listing.price),
+          priceUnit: listing.priceUnit,
+          gender: listing.gender,
+          occupancy: listing.occupancy,
+          bathrooms: String(listing.bathrooms),
+          description: listing.description,
+          furnished: listing.furnished,
+          amenities: listing.amenities,
+          availableFrom: listing.availableFrom ? listing.availableFrom.slice(0, 10) : '',
+          contactName: listing.contactName,
+          contactPhone: listing.contactPhone,
+          contactWhatsApp: listing.contactWhatsApp || '',
+          nearbyLandmarks: listing.nearbyLandmarks,
+        });
+        setExistingImages(listing.images || []);
+        setPreviews(listing.images || []);
+      })
+      .catch(err => setSubmitError(err instanceof Error ? err.message : 'Failed to load listing'))
+      .finally(() => setLoadingListing(false));
+  }, [id, isAuthenticated]);
 
   if (!isAuthenticated) {
     navigate('/auth?mode=login');
@@ -171,7 +209,7 @@ export default function CreateListingPage() {
 
   const handleFilesChange = (selected: FileList | null) => {
     if (!selected) return;
-    const newFiles = Array.from(selected).slice(0, 10 - files.length);
+    const newFiles = Array.from(selected).slice(0, 10 - files.length - existingImages.length);
     setFiles(prev => [...prev, ...newFiles]);
     newFiles.forEach(f => {
       const url = URL.createObjectURL(f);
@@ -180,8 +218,15 @@ export default function CreateListingPage() {
   };
 
   const removeFile = (i: number) => {
+    if (i < existingImages.length) {
+      setExistingImages(prev => prev.filter((_, idx) => idx !== i));
+      setPreviews(prev => prev.filter((_, idx) => idx !== i));
+      return;
+    }
+
     URL.revokeObjectURL(previews[i]);
-    setFiles(prev => prev.filter((_, idx) => idx !== i));
+    const fileIndex = i - existingImages.length;
+    setFiles(prev => prev.filter((_, idx) => idx !== fileIndex));
     setPreviews(prev => prev.filter((_, idx) => idx !== i));
   };
 
@@ -189,12 +234,12 @@ export default function CreateListingPage() {
     setSubmitting(true);
     setSubmitError('');
     try {
-      let imageUrls: string[] = [];
+      let uploadedImageUrls: string[] = [];
       if (files.length > 0) {
         const res = await uploadApi.images(files);
-        imageUrls = res.urls;
+        uploadedImageUrls = res.urls;
       }
-      await propertiesApi.create({
+      const payload = {
         title: form.title,
         type: form.type,
         area: form.area,
@@ -215,8 +260,13 @@ export default function CreateListingPage() {
         contactPhone: form.contactPhone,
         contactWhatsApp: form.contactWhatsApp || undefined,
         nearbyLandmarks: form.nearbyLandmarks,
-        imageUrls,
-      });
+        imageUrls: isEditMode ? [...existingImages, ...uploadedImageUrls] : uploadedImageUrls,
+      };
+      if (id) {
+        await propertiesApi.update(id, payload);
+      } else {
+        await propertiesApi.create(payload);
+      }
       setSubmitted(true);
       setTimeout(() => navigate('/dashboard/landlord'), 2500);
     } catch (err) {
@@ -233,9 +283,11 @@ export default function CreateListingPage() {
           <div className="w-16 h-16 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-4">
             <CheckCircle className="w-8 h-8 text-green-600" />
           </div>
-          <h2 className="text-2xl font-bold text-[#0B1220] mb-2">Listing submitted!</h2>
+          <h2 className="text-2xl font-bold text-[#0B1220] mb-2">{isEditMode ? 'Listing updated!' : 'Listing submitted!'}</h2>
           <p className="text-[#64748B] text-sm leading-relaxed">
-            Your listing is under review. Our team will verify and publish it within 24 hours.
+            {isEditMode
+              ? 'Your changes have been saved.'
+              : 'Your listing is under review. Our team will verify and publish it within 24 hours.'}
           </p>
           <div className="mt-4 h-1 bg-[#F1F5F9] rounded-full overflow-hidden">
             <div className="h-full bg-green-500 rounded-full animate-[progress_2.5s_ease-out_forwards]" style={{ width: '100%', transition: 'width 2.5s' }} />
@@ -246,6 +298,16 @@ export default function CreateListingPage() {
   }
 
   const locationPreview = mapUrls(form.latitude, form.longitude);
+
+  if (loadingListing) {
+    return (
+      <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center">
+        <div className="rounded-2xl border border-[#E5E7EB] bg-white px-6 py-4 text-sm font-medium text-[#64748B] shadow-card">
+          Loading listing...
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#F8FAFC]">
@@ -258,7 +320,7 @@ export default function CreateListingPage() {
           <ChevronLeft className="w-4 h-4" />
         </button>
         <div>
-          <h1 className="font-bold text-[#0B1220]">Post a listing</h1>
+          <h1 className="font-bold text-[#0B1220]">{isEditMode ? 'Edit listing' : 'Post a listing'}</h1>
           <p className="text-xs text-[#94A3B8]">Step {step + 1} of {STEPS.length} — {STEPS[step]}</p>
         </div>
       </div>
@@ -649,7 +711,7 @@ export default function CreateListingPage() {
 
               <div className="bg-[#F8FAFC] border border-[#E5E7EB] rounded-xl p-4 text-sm text-[#475569]">
                 <p className="font-semibold mb-1 text-[#0F172A]">What happens next?</p>
-                <p>Our team will review your listing within 24 hours. Once approved, it will go live to all users. You will receive a notification when it is published.</p>
+                <p>{isEditMode ? 'Save your changes when everything looks correct.' : 'Our team will review your listing within 24 hours. Once approved, it will go live to all users. You will receive a notification when it is published.'}</p>
               </div>
             </div>
           )}
@@ -675,7 +737,7 @@ export default function CreateListingPage() {
             </Button>
           ) : (
             <Button variant="primary" size="lg" onClick={handleSubmit} disabled={submitting}>
-              {submitting ? 'Submitting...' : 'Submit listing'}
+              {submitting ? (isEditMode ? 'Saving...' : 'Submitting...') : (isEditMode ? 'Save changes' : 'Submit listing')}
               {!submitting && <CheckCircle className="w-4 h-4" />}
             </Button>
           )}

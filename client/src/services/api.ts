@@ -168,6 +168,8 @@ export const properties = {
 
   mine: () => request<{ data: Listing[] }>('/api/properties/mine'),
 
+  areaCounts: () => request<{ data: Record<string, number> }>('/api/properties/stats/area-counts'),
+
   adminList: (status: AdminListingStatus = 'all') =>
     request<{ data: Listing[] }>(`/api/properties/admin/all?status=${status}`),
 

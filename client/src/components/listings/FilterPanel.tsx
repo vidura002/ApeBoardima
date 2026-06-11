@@ -1,6 +1,7 @@
 import { X, SlidersHorizontal } from 'lucide-react';
 import { ACTIVE_AREAS } from '../../data/mockData';
 import { Button } from '../ui/Button';
+import { useAreaListingCounts } from '../../hooks/useAreaListingCounts';
 import type { SearchFilters } from '../../types';
 
 interface FilterPanelProps {
@@ -53,6 +54,7 @@ export default function FilterPanel({
   mobileOpen = true,
   onMobileClose,
 }: FilterPanelProps) {
+  const { counts, loading } = useAreaListingCounts();
   const hasActiveFilters =
     filters.area !== '' ||
     filters.type !== '' ||
@@ -120,11 +122,11 @@ export default function FilterPanel({
             active={filters.area === ''}
             onClick={() => onChange({ area: '' })}
           />
-          {ACTIVE_AREAS.map(area => (
-            <FilterChip
-              key={area.id}
-              label={`${area.name} (${area.listingsCount})`}
-              active={filters.area === area.name}
+	          {ACTIVE_AREAS.map(area => (
+	            <FilterChip
+	              key={area.id}
+	              label={`${area.name} (${loading ? '...' : counts[area.name] ?? 0})`}
+	              active={filters.area === area.name}
               onClick={() => onChange({ area: filters.area === area.name ? '' : area.name })}
             />
           ))}

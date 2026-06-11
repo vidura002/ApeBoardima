@@ -2,9 +2,11 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
 import { ACTIVE_AREAS } from '../../data/mockData';
+import { useAreaListingCounts } from '../../hooks/useAreaListingCounts';
 
 export default function AreaCards() {
   const navigate = useNavigate();
+  const { counts, loading } = useAreaListingCounts();
 
   return (
     <section className="py-20 bg-[#F8FAFC]">
@@ -25,11 +27,13 @@ export default function AreaCards() {
         {/* Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-4xl mx-auto">
           {ACTIVE_AREAS.map(area => (
-            <AreaCard
-              key={area.id}
-              area={area}
-              onClick={() => navigate(`/browse?area=${area.name}`)}
-            />
+	            <AreaCard
+	              key={area.id}
+	              area={area}
+	              count={counts[area.name] ?? 0}
+	              loadingCount={loading}
+	              onClick={() => navigate(`/browse?area=${area.name}`)}
+	            />
           ))}
         </div>
       </div>
@@ -38,11 +42,13 @@ export default function AreaCards() {
 }
 
 interface AreaCardProps {
-  area: { id: string; name: string; tagline: string; listingsCount: number; image: string };
+  area: { id: string; name: string; tagline: string; image: string };
+  count: number;
+  loadingCount: boolean;
   onClick: () => void;
 }
 
-function AreaCard({ area, onClick }: AreaCardProps) {
+function AreaCard({ area, count, loadingCount, onClick }: AreaCardProps) {
   const [imgError, setImgError] = useState(false);
 
   return (
@@ -70,7 +76,7 @@ function AreaCard({ area, onClick }: AreaCardProps) {
             <p className="text-white/70 text-xs mt-0.5">{area.tagline}</p>
           </div>
           <div className="flex flex-col items-end">
-            <span className="text-white font-bold text-sm">{area.listingsCount}</span>
+            <span className="text-white font-bold text-sm">{loadingCount ? '...' : count}</span>
             <span className="text-white/60 text-xs">listings</span>
           </div>
         </div>

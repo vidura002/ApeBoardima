@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   Home, Plus, Eye, Heart, MessageSquare, Settings, LogOut,
-  TrendingUp, CheckCircle, Clock, AlertCircle, MoreHorizontal, Pencil, Trash2
+  TrendingUp, CheckCircle, Clock, AlertCircle, Pencil, Trash2
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { properties as propertiesApi, enquiries as enquiriesApi, type Enquiry } from '../services/api';
@@ -21,7 +21,6 @@ export default function LandlordDashboard() {
   const { currentUser, logout } = useApp();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('overview');
-  const [menuOpen, setMenuOpen] = useState<string | null>(null);
   const [myListings, setMyListings] = useState<Listing[]>([]);
   const [myEnquiries, setMyEnquiries] = useState<Enquiry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -187,7 +186,7 @@ export default function LandlordDashboard() {
                     View all
                   </button>
                 </div>
-                <ListingsTable listings={myListings.slice(0, 3)} menuOpen={menuOpen} setMenuOpen={setMenuOpen} onDelete={handleDelete} />
+                <ListingsTable listings={myListings.slice(0, 3)} onDelete={handleDelete} />
               </div>
             </div>
           )}
@@ -197,7 +196,7 @@ export default function LandlordDashboard() {
             <div className="space-y-5">
               <p className="text-sm text-[#64748B]">{myListings.length} listings total</p>
               <div className="bg-white rounded-2xl border border-[#E5E7EB]">
-                <ListingsTable listings={myListings} menuOpen={menuOpen} setMenuOpen={setMenuOpen} onDelete={handleDelete} />
+                <ListingsTable listings={myListings} onDelete={handleDelete} />
               </div>
             </div>
           )}
@@ -293,13 +292,9 @@ export default function LandlordDashboard() {
 
 function ListingsTable({
   listings,
-  menuOpen,
-  setMenuOpen,
   onDelete,
 }: {
   listings: Listing[];
-  menuOpen: string | null;
-  setMenuOpen: (id: string | null) => void;
   onDelete: (id: string) => void;
 }) {
   return (
@@ -362,31 +357,22 @@ function ListingsTable({
               <td className="px-6 py-4 text-sm text-[#475569]">{listing.views.toLocaleString()}</td>
               <td className="px-6 py-4 text-sm text-[#475569]">{listing.saves}</td>
               <td className="px-6 py-4">
-                <div className="relative">
-                  <button
-                    onClick={() => setMenuOpen(menuOpen === listing.id ? null : listing.id)}
-                    className="p-2 rounded-lg hover:bg-[#F1F5F9] transition-colors"
+                <div className="flex items-center justify-end gap-2">
+                  <Link
+                    to={`/edit-listing/${listing.id}`}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-[#E5E7EB] bg-white px-3 py-2 text-xs font-semibold text-[#475569] transition-colors hover:border-[#CBD5E1] hover:bg-[#F8FAFC] hover:text-[#0F172A]"
                   >
-                    <MoreHorizontal className="w-4 h-4 text-[#94A3B8]" />
+                    <Pencil className="h-3.5 w-3.5" />
+                    Edit
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => onDelete(listing.id)}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-red-100 bg-white px-3 py-2 text-xs font-semibold text-red-600 transition-colors hover:bg-red-50"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                    Delete
                   </button>
-                  {menuOpen === listing.id && (
-                    <>
-                      <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(null)} />
-                      <div className="absolute right-0 mt-1 w-36 bg-white rounded-xl shadow-lg border border-[#E5E7EB] z-20 overflow-hidden">
-                        <button className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A]">
-                          <Pencil className="w-3.5 h-3.5" />
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => { setMenuOpen(null); onDelete(listing.id); }}
-                          className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                          Delete
-                        </button>
-                      </div>
-                    </>
-                  )}
                 </div>
               </td>
             </tr>

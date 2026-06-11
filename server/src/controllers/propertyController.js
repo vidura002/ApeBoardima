@@ -106,6 +106,29 @@ export async function getProperties(req, res) {
   }
 }
 
+export async function getAreaCounts(_req, res) {
+  try {
+    const grouped = await prisma.property.groupBy({
+      by: ['area'],
+      where: {
+        approved: true,
+        area: { in: PUBLIC_AREAS },
+      },
+      _count: { _all: true },
+    });
+
+    const counts = Object.fromEntries(PUBLIC_AREAS.map(area => [area, 0]));
+    grouped.forEach(row => {
+      counts[row.area] = row._count._all;
+    });
+
+    return res.json({ data: counts });
+  } catch (err) {
+    console.error('getAreaCounts error:', err);
+    return res.status(500).json({ error: 'Failed to fetch area listing counts' });
+  }
+}
+
 export async function getPropertyById(req, res) {
   try {
     const property = await prisma.property.findUnique({

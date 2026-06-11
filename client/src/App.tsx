@@ -28,6 +28,7 @@ function App() {
             <Route path="/dashboard/tenant" element={<TenantDashboard />} />
             <Route path="/dashboard/admin" element={<AdminDashboard />} />
             <Route path="/create-listing" element={<CreateListingPage />} />
+            <Route path="/edit-listing/:id" element={<CreateListingPage />} />
             <Route path="/profile" element={<ProfilePage />} />
           </Route>
         </Routes>
